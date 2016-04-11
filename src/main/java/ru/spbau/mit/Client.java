@@ -10,4 +10,6 @@ public interface Client {
     List<FileInfo> getFilesList() throws IOException;
     void download(int fileId, Path path) throws IOException;
     void upload(String path) throws IOException;
+    void save() throws IOException;
+    void restore() throws IOException;
 }

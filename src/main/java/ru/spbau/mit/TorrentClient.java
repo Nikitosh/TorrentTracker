@@ -14,6 +14,7 @@ public class TorrentClient implements Client {
     private static final String LIST = "list";
     private static final String DOWNLOAD = "download";
     private static final String UPLOAD = "upload";
+    private static final String QUIT = "quit";
     private static final String WRONG_FORMAT_ERROR = "Wrong request format! Try one more time!";
     private static final String WRONG_PATH_ERROR = "Wrong file path!";
     private static final String REQUEST_OK_STATUS = "Handled: ";
@@ -124,8 +125,25 @@ public class TorrentClient implements Client {
         trackerClient.executeUpdate(port, peerToPeerConnection.getAvailableFileIds());
     }
 
+    @Override
+    public void save() throws IOException {
+        peerToPeerConnection.save();
+    }
+
+    @Override
+    public void restore() throws IOException {
+        peerToPeerConnection.restore();
+    }
+
     public static void main(String[] args) {
         Client client = new TorrentClient(Short.valueOf(args[0]));
+        if (Constants.TO_SAVE_PATH.toFile().exists()) {
+            try {
+                client.restore();
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
         Scanner scanner = new Scanner(System.in);
         while (true) {
             String line = scanner.nextLine();
@@ -149,6 +167,9 @@ public class TorrentClient implements Client {
                 case UPLOAD:
                     handleUpload(client, arguments.subList(1, arguments.size()));
                     break;
+                case QUIT:
+                    handleQuit(client);
+                    return;
                 default:
                     System.out.println(WRONG_FORMAT_ERROR);
             }
@@ -210,6 +231,15 @@ public class TorrentClient implements Client {
         } catch (NoSuchFileException e) {
             System.out.println(WRONG_PATH_ERROR);
         } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    private static void handleQuit(Client client) {
+        try {
+            client.save();
+            System.out.println(REQUEST_OK_STATUS + QUIT);
+        } catch (IOException e) {
             System.out.println(e.getMessage());
         }
     }

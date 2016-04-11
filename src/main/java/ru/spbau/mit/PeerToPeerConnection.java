@@ -1,11 +1,11 @@
 package ru.spbau.mit;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class PeerToPeerConnection extends AbstractServer implements PeerToPeerClient {
@@ -80,5 +80,57 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
             availableFileParts.put(id, new HashSet<>());
         }
         availableFileParts.get(id).add(part);
+    }
+
+    public void save() throws IOException {
+        File file = Constants.TO_SAVE_PATH.toFile();
+        if (!file.exists()) {
+            Files.createFile(Constants.TO_SAVE_PATH);
+            file = Constants.TO_SAVE_PATH.toFile();
+        }
+        DataOutputStream outputStream = new DataOutputStream(new FileOutputStream(file));
+
+        outputStream.writeInt(availableFileParts.size());
+        for (Map.Entry<Integer, Set<Integer>> entry : availableFileParts.entrySet()) {
+            outputStream.writeInt(entry.getKey());
+            Set<Integer> availableParts = entry.getValue();
+            outputStream.writeInt(availableParts.size());
+            for (int part : availableParts) {
+                outputStream.writeInt(part);
+            }
+        }
+
+        outputStream.writeInt(filesPaths.size());
+        for (Map.Entry<Integer, Path> filePath : filesPaths.entrySet()) {
+            outputStream.writeInt(filePath.getKey());
+            outputStream.writeUTF(filePath.getValue().toString());
+        }
+        outputStream.close();
+    }
+
+    public void restore() throws IOException {
+        File file = Constants.TO_SAVE_PATH.toFile();
+        DataInputStream inputStream = new DataInputStream(new FileInputStream(file));
+
+        availableFileParts = new HashMap<>();
+        filesPaths = new HashMap<>();
+
+        int availableFilePartsSize = inputStream.readInt();
+        for (int i = 0; i < availableFilePartsSize; i++) {
+            int id = inputStream.readInt();
+            int setSize = inputStream.readInt();
+            Set<Integer> availableParts = new HashSet<>();
+            for (int j = 0; j < setSize; j++) {
+                availableParts.add(inputStream.readInt());
+            }
+            availableFileParts.put(id, availableParts);
+        }
+
+        int filesPathsSize = inputStream.readInt();
+        for (int i = 0; i < filesPathsSize; i++) {
+            int id = inputStream.readInt();
+            String path = inputStream.readUTF();
+            filesPaths.put(id, Paths.get(path));
+        }
     }
 }
