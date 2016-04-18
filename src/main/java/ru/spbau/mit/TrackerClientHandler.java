@@ -112,19 +112,26 @@ public class TrackerClientHandler implements Runnable {
             }
             ClientInfo clientInfo = new ClientInfo(ip, port);
 
-            if (toRemoveClientTasks.containsKey(clientInfo)) {
-                toRemoveClientTasks.get(clientInfo).cancel();
+            synchronized (toRemoveClientTasks) {
+                if (toRemoveClientTasks.containsKey(clientInfo)) {
+                    toRemoveClientTasks.get(clientInfo).cancel();
+                }
             }
-            clientSeededFiles.put(clientInfo, seededFiles);
-
+            synchronized (clientSeededFiles) {
+                clientSeededFiles.put(clientInfo, seededFiles);
+            }
             TimerTask task = new TimerTask() {
                 @Override
                 public void run() {
-                    clientSeededFiles.remove(clientInfo);
+                    synchronized (clientSeededFiles) {
+                        clientSeededFiles.remove(clientInfo);
+                    }
                 }
             };
-            toRemoveClientTimer.schedule(task, Constants.UPDATE_REQUEST_DELAY);
-
+            synchronized (toRemoveClientTasks) {
+                toRemoveClientTasks.put(clientInfo, task);
+                toRemoveClientTimer.schedule(task, Constants.UPDATE_REQUEST_DELAY);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             outputStream.writeBoolean(false);

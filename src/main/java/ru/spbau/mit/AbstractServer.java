@@ -34,7 +34,7 @@ public abstract class AbstractServer implements Server {
                 }
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    taskExecutor.submit(handlerFactory.getHandler(clientSocket));
+                    taskExecutor.execute(handlerFactory.getHandler(clientSocket));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
