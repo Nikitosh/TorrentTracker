@@ -9,10 +9,10 @@ import java.util.*;
 
 public class TrackerClientHandler implements Runnable {
     private Socket socket;
-    private List<FileInfo> filesList;
-    private Map<ClientInfo, Set<Integer>> clientSeededFiles;
-    private Map<ClientInfo, TimerTask> toRemoveClientTasks;
-    private Timer toRemoveClientTimer;
+    private final List<FileInfo> filesList;
+    private final Map<ClientInfo, Set<Integer>> clientSeededFiles;
+    private final Map<ClientInfo, TimerTask> toRemoveClientTasks;
+    private final Timer toRemoveClientTimer;
 
     public TrackerClientHandler(Socket socket, List<FileInfo> filesList, Map<ClientInfo,
             Set<Integer>> clientSeededFiles, Map<ClientInfo, TimerTask> toRemoveClientTasks) {

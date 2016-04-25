@@ -12,7 +12,7 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
     private Socket socket;
     private DataInputStream inputStream;
     private DataOutputStream outputStream;
-    private Map<Integer, Set<Integer>> availableFileParts; //stores numbers of available parts of given id
+    private Map<Integer, BitSet> availableFileParts; //stores numbers of available parts of given id
     private Map<Integer, Path> filesPaths; //stores path of file with given id
 
     public PeerToPeerConnection(short port) {
@@ -67,9 +67,9 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
     public void addFile(int id, Path path) {
         long size = path.toFile().length();
         filesPaths.put(id, path);
-        Set<Integer> fileParts = new HashSet<>();
+        BitSet fileParts = new BitSet();
         for (int i = 0; i < (size + Constants.DATA_BLOCK_SIZE - 1) / Constants.DATA_BLOCK_SIZE; i++) {
-            fileParts.add(i);
+            fileParts.set(i);
         }
         availableFileParts.put(id, fileParts);
     }
@@ -77,9 +77,9 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
     public void addFilePart(int id, int part, Path path) {
         if (!filesPaths.containsKey(id)) {
             filesPaths.put(id, path);
-            availableFileParts.put(id, new HashSet<>());
+            availableFileParts.put(id, new BitSet());
         }
-        availableFileParts.get(id).add(part);
+        availableFileParts.get(id).set(part);
     }
 
     public void save() throws IOException {
@@ -91,12 +91,14 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
         DataOutputStream outputStream = new DataOutputStream(new FileOutputStream(file));
 
         outputStream.writeInt(availableFileParts.size());
-        for (Map.Entry<Integer, Set<Integer>> entry : availableFileParts.entrySet()) {
+        for (Map.Entry<Integer, BitSet> entry : availableFileParts.entrySet()) {
             outputStream.writeInt(entry.getKey());
-            Set<Integer> availableParts = entry.getValue();
-            outputStream.writeInt(availableParts.size());
-            for (int part : availableParts) {
-                outputStream.writeInt(part);
+            BitSet availableParts = entry.getValue();
+            outputStream.writeInt(availableParts.cardinality());
+            for (int i = 0; i < availableParts.size(); i++) {
+                if (availableParts.get(i)) {
+                    outputStream.writeInt(i);
+                }
             }
         }
 
@@ -119,9 +121,9 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
         for (int i = 0; i < availableFilePartsSize; i++) {
             int id = inputStream.readInt();
             int setSize = inputStream.readInt();
-            Set<Integer> availableParts = new HashSet<>();
+            BitSet availableParts = new BitSet();
             for (int j = 0; j < setSize; j++) {
-                availableParts.add(inputStream.readInt());
+                availableParts.set(inputStream.readInt());
             }
             availableFileParts.put(id, availableParts);
         }

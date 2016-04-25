@@ -1,17 +1,23 @@
 package ru.spbau.mit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 public abstract class AbstractServer implements Server {
+    private static final Logger LOGGER = LogManager.getLogger(AbstractServer.class);
+
     private ServerSocket serverSocket;
-    private short port;
+    private final short port;
     private ExecutorService taskExecutor;
-    private HandlerFactory handlerFactory;
+    private Function<Socket, Runnable> handlerFactory;
 
     public AbstractServer(short port) {
         this.port = port;
@@ -19,9 +25,11 @@ public abstract class AbstractServer implements Server {
 
     @Override
     public void start() {
+        LOGGER.info("Server has started");
         try {
             serverSocket = new ServerSocket(port);
         } catch (IOException e) {
+            // ?
             e.printStackTrace();
         }
         taskExecutor = Executors.newCachedThreadPool();
@@ -34,7 +42,7 @@ public abstract class AbstractServer implements Server {
                 }
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    taskExecutor.execute(handlerFactory.getHandler(clientSocket));
+                    taskExecutor.execute(handlerFactory.apply(clientSocket));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -61,7 +69,7 @@ public abstract class AbstractServer implements Server {
         taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
     }
 
-    protected void setHandlerFactory(HandlerFactory handlerFactory) {
+    protected void setHandlerFactory(Function<Socket, Runnable> handlerFactory) {
         this.handlerFactory = handlerFactory;
     }
 }

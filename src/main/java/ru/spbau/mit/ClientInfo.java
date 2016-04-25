@@ -9,8 +9,8 @@ public class ClientInfo {
     private static final int P = 31;
     private static final int IP_BYTE_NUMBER = 4;
 
-    private byte[] ip;
-    private short port;
+    private final byte[] ip;
+    private final short port;
 
     public ClientInfo(byte[] ip, short port) {
         this.ip = ip;

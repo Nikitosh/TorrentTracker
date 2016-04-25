@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+        </Console>
+        <File name="TraceFile" fileName="src/main/resources/trace.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+        <File name="DebugFile" fileName="src/main/resources/debug.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+        <File name="InfoFile" fileName="src/main/resources/info.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+        <File name="WarnFile" fileName="src/main/resources/warn.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+        <File name="ErrorFile" fileName="src/main/resources/error.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+        <File name="FatalFile" fileName="src/main/resources/fatal.log" immediateFlush="false" append="false">
+            <PatternLayout pattern="%d{yyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+    </Appenders>
+    <Loggers>
+        <Root level="error">
+            <AppenderRef ref="Console" />
+            <AppenderRef ref="ErrorFile"/>
+        </Root>
+        <Logger name="ru.spbau.mit" level="trace">
+            <AppenderRef ref="TraceFile"/>
+        </Logger>
+        <Logger name="ru.spbau.mit" level="debug">
+            <AppenderRef ref="DebugFile"/>
+        </Logger>
+        <Logger name="ru.spbau.mit" level="info">
+            <AppenderRef ref="InfoFile"/>
+        </Logger>
+        <Logger name="ru.spbau.mit" level="warn">
+            <AppenderRef ref="WarnFile"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="ru.spbau.mit" level="error">
+            <AppenderRef ref="ErrorFile"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="ru.spbau.mit" level="fatal">
+            <AppenderRef ref="FatalFile"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+    </Loggers>
+</Configuration>

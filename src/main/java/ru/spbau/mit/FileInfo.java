@@ -8,8 +8,8 @@ public class FileInfo {
     private static final int P = 31;
 
     private int id;
-    private String name;
-    private long size;
+    private final String name;
+    private final long size;
 
     public FileInfo(String name, long size) {
         this(0, name, size);

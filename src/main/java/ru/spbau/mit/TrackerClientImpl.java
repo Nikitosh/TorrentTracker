@@ -38,9 +38,9 @@ public class TrackerClientImpl implements TrackerClient {
     }
 
     @Override
-    public synchronized int executeUpload(String path, long size) throws IOException {
+    public synchronized int executeUpload(String name, long size) throws IOException {
         outputStream.writeInt(Constants.UPLOAD_REQUEST);
-        outputStream.writeUTF(path);
+        outputStream.writeUTF(name);
         outputStream.writeLong(size);
         outputStream.flush();
         return inputStream.readInt();

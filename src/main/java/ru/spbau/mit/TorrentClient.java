@@ -23,11 +23,11 @@ public class TorrentClient implements Client {
     private static final String ID = "Id: ";
     private static final byte[] LOCALHOST = new byte[] {127, 0, 0, 1};
 
-    private TrackerClient trackerClient = new TrackerClientImpl();
-    private PeerToPeerConnection peerToPeerConnection;
-    private Timer updateTimer = new Timer();
+    private final TrackerClient trackerClient = new TrackerClientImpl();
+    private final PeerToPeerConnection peerToPeerConnection;
+    private final Timer updateTimer = new Timer();
     private TimerTask updateTask;
-    private short port;
+    private final short port;
 
     public TorrentClient(short port) {
         this.port = port;

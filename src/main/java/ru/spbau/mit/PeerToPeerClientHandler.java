@@ -7,15 +7,15 @@ import java.io.IOException;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.BitSet;
 import java.util.Map;
-import java.util.Set;
 
 public class PeerToPeerClientHandler implements Runnable {
     private Socket socket;
-    private Map<Integer, Set<Integer>> availableFileParts;
-    private Map<Integer, Path> filesPaths;
+    private final Map<Integer, BitSet> availableFileParts;
+    private final Map<Integer, Path> filesPaths;
 
-    public PeerToPeerClientHandler(Socket socket, Map<Integer, Set<Integer>> availableFileParts,
+    public PeerToPeerClientHandler(Socket socket, Map<Integer, BitSet> availableFileParts,
                                    Map<Integer, Path> filesPaths) {
         this.socket = socket;
         this.availableFileParts = availableFileParts;
@@ -63,10 +63,12 @@ public class PeerToPeerClientHandler implements Runnable {
         if (!availableFileParts.containsKey(id)) {
             outputStream.writeInt(0);
         } else {
-            Set<Integer> availableParts = availableFileParts.get(id);
-            outputStream.writeInt(availableParts.size());
-            for (Integer part : availableParts) {
-                outputStream.writeInt(part);
+            BitSet availableParts = availableFileParts.get(id);
+            outputStream.writeInt(availableParts.cardinality());
+            for (int i = 0; i < availableParts.size(); i++) {
+                if (availableParts.get(i)) {
+                    outputStream.writeInt(i);
+                }
             }
         }
         outputStream.flush();
@@ -75,7 +77,7 @@ public class PeerToPeerClientHandler implements Runnable {
     private void handleGet(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         int partNumber = inputStream.readInt();
-        if (availableFileParts.containsKey(id) && availableFileParts.get(id).contains(partNumber)) {
+        if (availableFileParts.containsKey(id) && availableFileParts.get(id).get(partNumber)) {
             byte[] buffer = new byte[Constants.DATA_BLOCK_SIZE];
             DataInputStream fileInputStream = new DataInputStream(Files.newInputStream(filesPaths.get(id)));
             fileInputStream.skipBytes(partNumber * Constants.DATA_BLOCK_SIZE);
