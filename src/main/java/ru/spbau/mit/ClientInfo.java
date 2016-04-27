@@ -7,7 +7,6 @@ import java.util.Arrays;
 
 public class ClientInfo {
     private static final int P = 31;
-    private static final int IP_BYTE_NUMBER = 4;
 
     private final byte[] ip;
     private final int port;
@@ -37,8 +36,8 @@ public class ClientInfo {
     }
 
     public static ClientInfo read(DataInputStream inputStream) throws IOException {
-        byte[] ip = new byte[IP_BYTE_NUMBER];
-        inputStream.read(ip, 0, IP_BYTE_NUMBER);
+        byte[] ip = new byte[Constants.IP_BYTE_NUMBER];
+        inputStream.read(ip, 0, Constants.IP_BYTE_NUMBER);
         int port = inputStream.readInt();
         return new ClientInfo(ip, port);
     }

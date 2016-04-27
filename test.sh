@@ -13,7 +13,7 @@ mkdir $TMP/client1
 mkdir $TMP/client2
 mkdir $TMP/client3
 
-JAVA=/usr/lib/jvm/java-8-oracle/bin/java
+JAVA=$JAVA_HOME/bin/java
 
 cd $PROJ
 mvn assembly:assembly 
@@ -35,6 +35,8 @@ $CLIENT list 127.0.0.1
 $CLIENT run 127.0.0.1 &
 PID1=$!
 
+sleep 1
+
 cd $TMP/client2
 $CLIENT get 127.0.0.1 0
 $CLIENT run 127.0.0.1 &
@@ -47,8 +49,7 @@ PID3=$!
 
 sleep 10 
 
-FILE_SUFFIX=downloads/0/`basename $REFERENCE_FILE`
-
+FILE_SUFFIX=downloads/`basename $REFERENCE_FILE`
 
 cmp --silent $TMP/client2/$FILE_SUFFIX $REFERENCE_FILE || echo "Bad file content for client 2"
 cmp --silent $TMP/client3/$FILE_SUFFIX $REFERENCE_FILE || echo "Bad file content for client 3"

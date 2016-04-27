@@ -66,6 +66,17 @@ public class ClientState {
             outputStream.writeInt(filePath.getKey());
             outputStream.writeUTF(filePath.getValue().toString());
         }
+
+        outputStream.writeInt(toDownloadFiles.size());
+        for (Map.Entry<InetAddress, List<Integer>> entry : toDownloadFiles.entrySet()) {
+            outputStream.write(entry.getKey().getAddress());
+            List<Integer> fileIds = entry.getValue();
+            outputStream.writeInt(fileIds.size());
+            for (int id : fileIds) {
+                outputStream.writeInt(id);
+            }
+        }
+        outputStream.flush();
         outputStream.close();
     }
 
@@ -93,6 +104,20 @@ public class ClientState {
             String path = inputStream.readUTF();
             filesPaths.put(id, Paths.get(path));
         }
+
+        int toDownloadFilesSize = inputStream.readInt();
+        for (int i = 0; i < toDownloadFilesSize; i++) {
+            byte[] ip = new byte[Constants.IP_BYTE_NUMBER];
+            inputStream.read(ip, 0, Constants.IP_BYTE_NUMBER);
+            int fileIdsListSize = inputStream.readInt();
+            List<Integer> fileIdsList = new ArrayList<>();
+            for (int j = 0; j < fileIdsListSize; j++) {
+                fileIdsList.add(inputStream.readInt());
+            }
+            toDownloadFiles.put(InetAddress.getByAddress(ip), fileIdsList);
+        }
+
+        inputStream.close();
     }
 
     public List<Integer> getAvailableFileIds() {

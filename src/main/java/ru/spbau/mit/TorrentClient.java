@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,7 +16,7 @@ import java.util.*;
 
 public class TorrentClient implements Client {
     private static final Logger LOGGER = LogManager.getLogger(TorrentClient.class);
-    private static final String DOWNLOADS_PATH = "src/main/resources/downloads";
+    private static final String DOWNLOADS_PATH = "downloads";
 
     private static final String LIST = "list";
     private static final String GET = "get";
@@ -37,7 +38,7 @@ public class TorrentClient implements Client {
     private final ClientState clientState;
     private final PeerToPeerServer peerToPeerServer;
     private final PeerToPeerClient peerToPeerClient;
-    private final Timer updateTimer = new Timer();
+    private Timer updateTimer;
     private TimerTask updateTask;
 
     public TorrentClient() {
@@ -61,6 +62,7 @@ public class TorrentClient implements Client {
                 }
             }
         };
+        updateTimer = new Timer();
         updateTimer.schedule(updateTask, 0, Constants.UPDATE_REQUEST_DELAY);
     }
 
@@ -122,6 +124,9 @@ public class TorrentClient implements Client {
             }
         }
         assert newFileInfo != null;
+        if (!path.toFile().exists()) {
+            Files.createDirectory(path);
+        }
         Path filePath = path.resolve(newFileInfo.getName());
         File file = filePath.toFile();
         RandomAccessFile newFile = new RandomAccessFile(file, "rw");
@@ -132,7 +137,11 @@ public class TorrentClient implements Client {
         Set<Integer> availableParts = new HashSet<>();
         while (availableParts.size() != partNumber) {
             for (ClientInfo clientInfo : clientsList) {
-                peerToPeerClient.connect(clientInfo.getIp(), clientInfo.getPort());
+                try {
+                    peerToPeerClient.connect(clientInfo.getIp(), clientInfo.getPort());
+                } catch (IOException e) {
+                    continue;
+                }
                 List<Integer> fileParts = peerToPeerClient.executeStat(fileId);
                 for (int part : fileParts) {
                     if (!availableParts.contains(part)) {
@@ -271,8 +280,6 @@ public class TorrentClient implements Client {
         try {
             client.start(trackerAddress);
             client.run(trackerAddress);
-            client.stopClient();
-            client.stopServer();
         } catch (NoSuchFileException e) {
             LOGGER.error("Wrong file path");
         } catch (IOException e) {
