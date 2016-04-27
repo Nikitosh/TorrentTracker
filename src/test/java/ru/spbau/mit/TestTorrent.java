@@ -65,10 +65,8 @@ public class TestTorrent {
                 new FileInfo(1, FILE_NAME2, FILE_LENGTH2)
         ), filesList2);
 
-        client1.stopClient();
-        client1.stopServer();
-        client2.stopClient();
-        client2.stopServer();
+        client1.stop();
+        client2.stop();
         server.stop();
     }
 
@@ -91,10 +89,8 @@ public class TestTorrent {
         client2.download(0, DIR_PATH2);
         assertEquals(FILE_LENGTH1, DIR_PATH1.resolve(FILE_NAME1).toFile().length());
 
-        client1.stopClient();
-        client1.stopServer();
-        client2.stopClient();
-        client2.stopServer();
+        client1.stop();
+        client2.stop();
         server.stop();
     }
 

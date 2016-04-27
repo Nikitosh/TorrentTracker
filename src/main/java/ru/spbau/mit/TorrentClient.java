@@ -67,16 +67,12 @@ public class TorrentClient implements Client {
     }
 
     @Override
-    public void stopClient() throws IOException {
+    public void stop() throws IOException {
         trackerClient.disconnect();
         peerToPeerClient.disconnect();
+        peerToPeerServer.stop();
         updateTask.cancel();
         updateTimer.cancel();
-    }
-
-    @Override
-    public void stopServer() throws IOException {
-        peerToPeerServer.stop();
     }
 
     @Override
@@ -248,8 +244,7 @@ public class TorrentClient implements Client {
                 System.out.println(NAME + fileInfo.getName() + ", "
                         + SIZE + fileInfo.getSize() + ", " + ID + fileInfo.getId());
             }
-            client.stopClient();
-            client.stopServer();
+            client.stop();
         } catch (IOException e) {
             LOGGER.warn("List request exception: " + e.getMessage());
         }
@@ -267,8 +262,7 @@ public class TorrentClient implements Client {
         try {
             client.start(trackerAddress);
             client.upload(path);
-            client.stopClient();
-            client.stopServer();
+            client.stop();
         } catch (NoSuchFileException e) {
             LOGGER.error("Wrong file path");
         } catch (IOException e) {

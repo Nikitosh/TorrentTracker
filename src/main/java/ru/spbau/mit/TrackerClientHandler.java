@@ -13,7 +13,7 @@ import java.util.*;
 public class TrackerClientHandler implements Runnable {
     private static final Logger LOGGER = LogManager.getLogger(TrackerClientHandler.class);
 
-    private Socket socket;
+    private final Socket socket;
     private final List<FileInfo> filesList;
     private final Map<ClientInfo, Set<Integer>> clientSeededFiles;
     private final Map<ClientInfo, TimerTask> toRemoveClientTasks;

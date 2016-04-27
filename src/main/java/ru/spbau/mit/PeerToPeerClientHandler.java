@@ -14,7 +14,7 @@ import java.util.BitSet;
 public class PeerToPeerClientHandler implements Runnable {
     private static final Logger LOGGER = LogManager.getLogger(PeerToPeerClientHandler.class);
 
-    private Socket socket;
+    private final Socket socket;
     private final ClientState clientState;
 
     public PeerToPeerClientHandler(Socket socket, ClientState clientState) {

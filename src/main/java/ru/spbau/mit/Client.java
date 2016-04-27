@@ -6,8 +6,7 @@ import java.util.List;
 
 public interface Client {
     void start(byte[] ip) throws IOException;
-    void stopClient() throws IOException;
-    void stopServer() throws IOException;
+    void stop() throws IOException;
     List<FileInfo> getFilesList() throws IOException;
     void addFileToDownload(byte[] ip, int fileId) throws IOException;
     void upload(String path) throws IOException;

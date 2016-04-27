@@ -16,7 +16,8 @@ public class ClientState {
 
     private Map<Integer, BitSet> availableFileParts; //stores numbers of available parts of given id
     private Map<Integer, Path> filesPaths; //stores path of file with given id
-    private Map<InetAddress, List<Integer>> toDownloadFiles = new HashMap<>(); //stores list of ids for given ip
+    //stores list of ids for given ip
+    private final Map<InetAddress, List<Integer>> toDownloadFiles = new HashMap<>();
 
     public ClientState() {
         availableFileParts = new HashMap<>();
