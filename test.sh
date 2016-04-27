@@ -22,29 +22,18 @@ JAR=$PROJ/target/torrent-1.0-SNAPSHOT-jar-with-dependencies.jar
 SERVER="$JAVA -cp $JAR ru.spbau.mit.TorrentServer"
 CLIENT="$JAVA -cp $JAR ru.spbau.mit.TorrentClient"
 
-echo "KEK-1"
-
 cd $TMP/server
 $SERVER & 
 PID0=$!
 
 cd $TMP/client1
 
-echo "KEK0"
-
 $CLIENT newfile 127.0.0.1 $REFERENCE_FILE 
-
-echo "KEK"
 
 $CLIENT list 127.0.0.1
 
-echo "KEK2"
-
-#$CLIENT run 127.0.0.1
 $CLIENT run 127.0.0.1 &
 PID1=$!
-
-echo "KEK3"
 
 cd $TMP/client2
 $CLIENT get 127.0.0.1 0
