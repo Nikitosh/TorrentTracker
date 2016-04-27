@@ -10,9 +10,9 @@ public class ClientInfo {
     private static final int IP_BYTE_NUMBER = 4;
 
     private final byte[] ip;
-    private final short port;
+    private final int port;
 
-    public ClientInfo(byte[] ip, short port) {
+    public ClientInfo(byte[] ip, int port) {
         this.ip = ip;
         this.port = port;
     }
@@ -33,13 +33,13 @@ public class ClientInfo {
 
     public void write(DataOutputStream outputStream) throws IOException {
         outputStream.write(ip);
-        outputStream.writeShort(port);
+        outputStream.writeInt(port);
     }
 
     public static ClientInfo read(DataInputStream inputStream) throws IOException {
         byte[] ip = new byte[IP_BYTE_NUMBER];
         inputStream.read(ip, 0, IP_BYTE_NUMBER);
-        short port = inputStream.readShort();
+        int port = inputStream.readInt();
         return new ClientInfo(ip, port);
     }
 
@@ -47,7 +47,7 @@ public class ClientInfo {
         return ip;
     }
 
-    public short getPort() {
+    public int getPort() {
         return port;
     }
 }

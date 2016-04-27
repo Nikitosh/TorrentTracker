@@ -5,7 +5,7 @@ import java.nio.file.Paths;
 
 public final class Constants {
     private Constants() {}
-    public static final short SERVER_PORT = 8081;
+    public static final int SERVER_PORT = 8081;
     public static final int LIST_REQUEST = 1;
     public static final int UPLOAD_REQUEST = 2;
     public static final int SOURCES_REQUEST = 3;

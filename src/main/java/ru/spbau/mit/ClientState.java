@@ -1,67 +1,26 @@
 package ru.spbau.mit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.*;
 import java.net.InetAddress;
-import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-public class PeerToPeerConnection extends AbstractServer implements PeerToPeerClient {
-    private Socket socket;
-    private DataInputStream inputStream;
-    private DataOutputStream outputStream;
+public class ClientState {
+    private static final Logger LOGGER = LogManager.getLogger(ClientState.class);
+
     private Map<Integer, BitSet> availableFileParts; //stores numbers of available parts of given id
     private Map<Integer, Path> filesPaths; //stores path of file with given id
+    private Map<InetAddress, List<Integer>> toDownloadFiles = new HashMap<>(); //stores list of ids for given ip
 
-    public PeerToPeerConnection(short port) {
-        super(port);
+    public ClientState() {
         availableFileParts = new HashMap<>();
         filesPaths = new HashMap<>();
-        setHandlerFactory(new PeerToPeerClientHandlerFactory(availableFileParts, filesPaths));
-    }
-
-    @Override
-    public void connect(byte[] ip, short port) throws IOException {
-        socket = new Socket(InetAddress.getByAddress(ip), port);
-        inputStream = new DataInputStream(socket.getInputStream());
-        outputStream = new DataOutputStream(socket.getOutputStream());
-    }
-
-    @Override
-    public void disconnect() throws IOException {
-        if (socket != null) {
-            socket.close();
-        }
-    }
-
-    @Override
-    public List<Integer> executeStat(int id) throws IOException {
-        outputStream.writeInt(Constants.STAT_REQUEST);
-        outputStream.writeInt(id);
-        outputStream.flush();
-        int size = inputStream.readInt();
-        List<Integer> partsList = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            partsList.add(inputStream.readInt());
-        }
-        return partsList;
-    }
-
-    @Override
-    public byte[] executeGet(int id, int part) throws IOException {
-        outputStream.writeInt(Constants.GET_REQUEST);
-        outputStream.writeInt(id);
-        outputStream.writeInt(part);
-        outputStream.flush();
-        byte[] buffer = new byte[Constants.DATA_BLOCK_SIZE];
-        inputStream.readFully(buffer);
-        return buffer;
-    }
-
-    public List<Integer> getAvailableFileIds() {
-        return new ArrayList<>(availableFileParts.keySet());
     }
 
     public void addFile(int id, Path path) {
@@ -133,6 +92,45 @@ public class PeerToPeerConnection extends AbstractServer implements PeerToPeerCl
             int id = inputStream.readInt();
             String path = inputStream.readUTF();
             filesPaths.put(id, Paths.get(path));
+        }
+    }
+
+    public List<Integer> getAvailableFileIds() {
+        return new ArrayList<>(availableFileParts.keySet());
+    }
+
+    public boolean containsFileWithId(int id) {
+        return availableFileParts.containsKey(id);
+    }
+
+    public BitSet getAvailableFilePartsWithId(int id) {
+        return availableFileParts.get(id);
+    }
+
+    public Path getPathWithId(int id) {
+        return filesPaths.get(id);
+    }
+
+    public void addFileToDownload(byte[] ip, int id) {
+        InetAddress address;
+        try {
+            address = InetAddress.getByAddress(ip);
+        } catch (UnknownHostException e) {
+            LOGGER.warn(e.getMessage());
+            return;
+        }
+        if (!toDownloadFiles.containsKey(address)) {
+            toDownloadFiles.put(address, new ArrayList<>());
+        }
+        toDownloadFiles.get(address).add(id);
+    }
+
+    public List<Integer> getToDownloadFilesWithIp(byte[] ip) {
+        try {
+            return toDownloadFiles.get(InetAddress.getByAddress(ip));
+        } catch (UnknownHostException e) {
+            LOGGER.warn(e.getMessage());
+            return null;
         }
     }
 }

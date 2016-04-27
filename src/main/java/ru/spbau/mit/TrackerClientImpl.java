@@ -60,9 +60,9 @@ public class TrackerClientImpl implements TrackerClient {
     }
 
     @Override
-    public synchronized boolean executeUpdate(short port, List<Integer> seededFiles) throws IOException {
+    public synchronized boolean executeUpdate(int port, List<Integer> seededFiles) throws IOException {
         outputStream.writeInt(Constants.UPDATE_REQUEST);
-        outputStream.writeShort(port);
+        outputStream.writeInt(port);
         outputStream.writeInt(seededFiles.size());
         for (int id : seededFiles) {
             outputStream.writeInt(id);

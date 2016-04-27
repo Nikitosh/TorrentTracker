@@ -15,11 +15,11 @@ public abstract class AbstractServer implements Server {
     private static final Logger LOGGER = LogManager.getLogger(AbstractServer.class);
 
     private ServerSocket serverSocket;
-    private final short port;
+    private final int port;
     private ExecutorService taskExecutor;
     private Function<Socket, Runnable> handlerFactory;
 
-    public AbstractServer(short port) {
+    public AbstractServer(int port) {
         this.port = port;
     }
 
@@ -29,8 +29,8 @@ public abstract class AbstractServer implements Server {
         try {
             serverSocket = new ServerSocket(port);
         } catch (IOException e) {
-            // ?
-            e.printStackTrace();
+            LOGGER.fatal("Failed to create ServerSocket: " + e.getMessage());
+            System.exit(1);
         }
         taskExecutor = Executors.newCachedThreadPool();
         taskExecutor.execute(() -> {
@@ -44,14 +44,14 @@ public abstract class AbstractServer implements Server {
                     Socket clientSocket = serverSocket.accept();
                     taskExecutor.execute(handlerFactory.apply(clientSocket));
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    LOGGER.warn("Exception during accepting client: " + e.getMessage());
                 }
             }
         });
     }
 
     @Override
-    public void stop() {
+    public synchronized void stop() {
         if (serverSocket == null) {
             return;
         }
@@ -59,7 +59,7 @@ public abstract class AbstractServer implements Server {
             taskExecutor.shutdown();
             serverSocket.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.warn("Exception during closing ServerSocket" + e.getMessage());
         }
         serverSocket = null;
     }
@@ -67,6 +67,13 @@ public abstract class AbstractServer implements Server {
     @Override
     public void join() throws InterruptedException {
         taskExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    }
+
+    public synchronized int getServerSocketPort() {
+        if (serverSocket != null && !serverSocket.isClosed()) {
+            return serverSocket.getLocalPort();
+        }
+        return 0;
     }
 
     protected void setHandlerFactory(Function<Socket, Runnable> handlerFactory) {

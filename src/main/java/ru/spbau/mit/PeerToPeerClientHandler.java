@@ -1,25 +1,25 @@
 package ru.spbau.mit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.BitSet;
-import java.util.Map;
 
 public class PeerToPeerClientHandler implements Runnable {
-    private Socket socket;
-    private final Map<Integer, BitSet> availableFileParts;
-    private final Map<Integer, Path> filesPaths;
+    private static final Logger LOGGER = LogManager.getLogger(PeerToPeerClientHandler.class);
 
-    public PeerToPeerClientHandler(Socket socket, Map<Integer, BitSet> availableFileParts,
-                                   Map<Integer, Path> filesPaths) {
+    private Socket socket;
+    private final ClientState clientState;
+
+    public PeerToPeerClientHandler(Socket socket, ClientState clientState) {
         this.socket = socket;
-        this.availableFileParts = availableFileParts;
-        this.filesPaths = filesPaths;
+        this.clientState = clientState;
     }
 
     @Override
@@ -31,15 +31,14 @@ public class PeerToPeerClientHandler implements Runnable {
                 outputStream = new DataOutputStream(socket.getOutputStream());
                 inputStream = new DataInputStream(socket.getInputStream());
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.error("Failed to get streams from socket: " + e.getMessage());
                 return;
             }
             int requestType;
             try {
                 try {
                     requestType = inputStream.readInt();
-                } catch (EOFException e) {
-                    e.printStackTrace();
+                } catch (EOFException ignored) {
                     return;
                 }
                 switch (requestType) {
@@ -53,17 +52,17 @@ public class PeerToPeerClientHandler implements Runnable {
                         throw new UnsupportedOperationException();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.warn(e.getMessage());
             }
         }
     }
 
     private void handleStat(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
-        if (!availableFileParts.containsKey(id)) {
+        if (!clientState.containsFileWithId(id)) {
             outputStream.writeInt(0);
         } else {
-            BitSet availableParts = availableFileParts.get(id);
+            BitSet availableParts = clientState.getAvailableFilePartsWithId(id);
             outputStream.writeInt(availableParts.cardinality());
             for (int i = 0; i < availableParts.size(); i++) {
                 if (availableParts.get(i)) {
@@ -77,9 +76,10 @@ public class PeerToPeerClientHandler implements Runnable {
     private void handleGet(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         int id = inputStream.readInt();
         int partNumber = inputStream.readInt();
-        if (availableFileParts.containsKey(id) && availableFileParts.get(id).get(partNumber)) {
+        if (clientState.containsFileWithId(id) && clientState.getAvailableFilePartsWithId(id).get(partNumber)) {
             byte[] buffer = new byte[Constants.DATA_BLOCK_SIZE];
-            DataInputStream fileInputStream = new DataInputStream(Files.newInputStream(filesPaths.get(id)));
+            DataInputStream fileInputStream = new DataInputStream(
+                    Files.newInputStream(clientState.getPathWithId(id)));
             fileInputStream.skipBytes(partNumber * Constants.DATA_BLOCK_SIZE);
             try {
                 fileInputStream.readFully(buffer);

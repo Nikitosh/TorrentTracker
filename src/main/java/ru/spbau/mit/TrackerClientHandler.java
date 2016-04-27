@@ -1,5 +1,8 @@
 package ru.spbau.mit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -8,6 +11,8 @@ import java.net.Socket;
 import java.util.*;
 
 public class TrackerClientHandler implements Runnable {
+    private static final Logger LOGGER = LogManager.getLogger(TrackerClientHandler.class);
+
     private Socket socket;
     private final List<FileInfo> filesList;
     private final Map<ClientInfo, Set<Integer>> clientSeededFiles;
@@ -32,14 +37,14 @@ public class TrackerClientHandler implements Runnable {
                 outputStream = new DataOutputStream(socket.getOutputStream());
                 inputStream = new DataInputStream(socket.getInputStream());
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.error("Failed to get streams from socket: " + e.getMessage());
                 return;
             }
             int requestType;
             try {
                 try {
                     requestType = inputStream.readInt();
-                } catch (EOFException e) {
+                } catch (EOFException ignored) {
                     return;
                 }
                 switch (requestType) {
@@ -59,7 +64,7 @@ public class TrackerClientHandler implements Runnable {
                         throw new UnsupportedOperationException();
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.warn(e.getMessage());
             }
         }
     }
@@ -104,7 +109,7 @@ public class TrackerClientHandler implements Runnable {
     private void handleUpdate(DataInputStream inputStream, DataOutputStream outputStream) throws IOException {
         try {
             byte[] ip = socket.getInetAddress().getAddress();
-            short port = inputStream.readShort();
+            int port = inputStream.readInt();
             int count = inputStream.readInt();
             Set<Integer> seededFiles = new HashSet<>();
             for (int i = 0; i < count; i++) {
@@ -133,7 +138,7 @@ public class TrackerClientHandler implements Runnable {
                 toRemoveClientTimer.schedule(task, Constants.UPDATE_REQUEST_DELAY);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.warn("Exception during handling update request: " + e.getMessage());
             outputStream.writeBoolean(false);
             outputStream.flush();
             return;

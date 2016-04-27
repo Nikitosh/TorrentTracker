@@ -1,50 +1,63 @@
 package ru.spbau.mit;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
 public class TorrentClient implements Client {
-    private static final String START = "start";
-    private static final String STOP = "stop";
+    private static final Logger LOGGER = LogManager.getLogger(TorrentClient.class);
+    private static final String DOWNLOADS_PATH = "src/main/resources/downloads";
+
     private static final String LIST = "list";
-    private static final String DOWNLOAD = "download";
-    private static final String UPLOAD = "upload";
-    private static final String QUIT = "quit";
-    private static final String WRONG_FORMAT_ERROR = "Wrong request format! Try one more time!";
-    private static final String WRONG_PATH_ERROR = "Wrong file path!";
-    private static final String REQUEST_OK_STATUS = "Handled: ";
+    private static final String GET = "get";
+    private static final String NEW_FILE = "newfile";
+    private static final String RUN = "run";
+
+    private static final int LIST_ARGUMENTS_NUMBER = 2;
+    private static final int GET_ARGUMENTS_NUMBER = 3;
+    private static final int NEW_FILE_ARGUMENTS_NUMBER = 3;
+    private static final int RUN_ARGUMENTS_NUMBER = 2;
+
+    private static final String WRONG_ARGUMENTS_NUMBER = "Wrong number of arguments of command ";
+    private static final String WRONG_TRACKER_ADDRESS = "Wrong tracker address format: ";
     private static final String NAME = "Name: ";
     private static final String SIZE = "Size: ";
     private static final String ID = "Id: ";
-    private static final byte[] LOCALHOST = new byte[] {127, 0, 0, 1};
 
     private final TrackerClient trackerClient = new TrackerClientImpl();
-    private final PeerToPeerConnection peerToPeerConnection;
+    private final ClientState clientState;
+    private final PeerToPeerServer peerToPeerServer;
+    private final PeerToPeerClient peerToPeerClient;
     private final Timer updateTimer = new Timer();
     private TimerTask updateTask;
-    private final short port;
 
-    public TorrentClient(short port) {
-        this.port = port;
-        peerToPeerConnection = new PeerToPeerConnection(port);
+    public TorrentClient() {
+        clientState = new ClientState();
+        peerToPeerServer = new PeerToPeerServer(clientState);
+        peerToPeerClient = new PeerToPeerClientImpl();
     }
 
     @Override
     public void start(byte[] ip) throws IOException {
         trackerClient.connect(ip, Constants.SERVER_PORT);
-        peerToPeerConnection.start();
+        peerToPeerServer.start();
         updateTask = new TimerTask() {
             @Override
             public void run() {
                 try {
-                    trackerClient.executeUpdate(port, peerToPeerConnection.getAvailableFileIds());
+                    trackerClient.executeUpdate(peerToPeerServer.getServerSocketPort(),
+                            clientState.getAvailableFileIds());
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    LOGGER.warn("Failed during updating: " + e.getMessage());
                 }
             }
         };
@@ -52,11 +65,16 @@ public class TorrentClient implements Client {
     }
 
     @Override
-    public void stop() throws IOException {
+    public void stopClient() throws IOException {
         trackerClient.disconnect();
-        peerToPeerConnection.stop();
-        peerToPeerConnection.disconnect();
+        peerToPeerClient.disconnect();
         updateTask.cancel();
+        updateTimer.cancel();
+    }
+
+    @Override
+    public void stopServer() throws IOException {
+        peerToPeerServer.stop();
     }
 
     @Override
@@ -65,7 +83,35 @@ public class TorrentClient implements Client {
     }
 
     @Override
-    public void download(int fileId, Path path) throws IOException {
+    public void addFileToDownload(byte[] ip, int fileId) {
+        clientState.addFileToDownload(ip, fileId);
+    }
+
+    @Override
+    public void upload(String path) throws IOException {
+        Path p = Paths.get(path);
+        File file = p.toFile();
+        if (!file.exists() || file.isDirectory()) {
+            throw new NoSuchFileException(path);
+        }
+        int id = trackerClient.executeUpload(p.getFileName().toString(), file.length());
+        clientState.addFile(id, p);
+        trackerClient.executeUpdate(peerToPeerServer.getServerSocketPort(), clientState.getAvailableFileIds());
+    }
+
+    @Override
+    public void run(byte[] ip) throws IOException {
+        List<Integer> filesToDownloadList = clientState.getToDownloadFilesWithIp(ip);
+        if (filesToDownloadList == null) {
+            return;
+        }
+        for (int id : filesToDownloadList) {
+            download(id, Paths.get(DOWNLOADS_PATH));
+        }
+    }
+
+    @Override
+    public void download(int fileId, Path path) throws IOException { //public for future using as separate function
         List<ClientInfo> clientsList = trackerClient.executeSources(fileId);
         List<FileInfo> filesList = trackerClient.executeList();
         FileInfo newFileInfo = null;
@@ -86,8 +132,8 @@ public class TorrentClient implements Client {
         Set<Integer> availableParts = new HashSet<>();
         while (availableParts.size() != partNumber) {
             for (ClientInfo clientInfo : clientsList) {
-                peerToPeerConnection.connect(clientInfo.getIp(), clientInfo.getPort());
-                List<Integer> fileParts = peerToPeerConnection.executeStat(fileId);
+                peerToPeerClient.connect(clientInfo.getIp(), clientInfo.getPort());
+                List<Integer> fileParts = peerToPeerClient.executeStat(fileId);
                 for (int part : fileParts) {
                     if (!availableParts.contains(part)) {
                         newFile.seek(part * Constants.DATA_BLOCK_SIZE);
@@ -97,14 +143,15 @@ public class TorrentClient implements Client {
                         }
                         byte[] buffer;
                         try {
-                            buffer = peerToPeerConnection.executeGet(fileId, part);
+                            buffer = peerToPeerClient.executeGet(fileId, part);
                         } catch (IOException e) {
                             continue;
                         }
                         newFile.write(buffer, 0, partSize);
                         availableParts.add(part);
-                        peerToPeerConnection.addFilePart(fileId, part, filePath);
-                        trackerClient.executeUpdate(port, peerToPeerConnection.getAvailableFileIds());
+                        clientState.addFilePart(fileId, part, filePath);
+                        trackerClient.executeUpdate(peerToPeerServer.getServerSocketPort(),
+                                clientState.getAvailableFileIds());
                     }
                 }
 
@@ -114,133 +161,122 @@ public class TorrentClient implements Client {
     }
 
     @Override
-    public void upload(String path) throws IOException {
-        Path p = Paths.get(path);
-        File file = p.toFile();
-        if (!file.exists() || file.isDirectory()) {
-            throw new NoSuchFileException(path);
-        }
-        int id = trackerClient.executeUpload(p.getFileName().toString(), file.length());
-        peerToPeerConnection.addFile(id, p);
-        trackerClient.executeUpdate(port, peerToPeerConnection.getAvailableFileIds());
-    }
-
-    @Override
     public void save() throws IOException {
-        peerToPeerConnection.save();
+        clientState.save();
     }
 
     @Override
     public void restore() throws IOException {
-        peerToPeerConnection.restore();
+        clientState.restore();
     }
 
     public static void main(String[] args) {
-        Client client = new TorrentClient(Short.valueOf(args[0]));
+        Client client = new TorrentClient();
         if (Constants.TO_SAVE_PATH.toFile().exists()) {
             try {
                 client.restore();
             } catch (IOException e) {
-                System.out.println(e.getMessage());
+                LOGGER.error("Failed during restoring");
+                return;
             }
         }
-        Scanner scanner = new Scanner(System.in);
-        while (true) {
-            String line = scanner.nextLine();
-            List<String> arguments = Arrays.asList(line.split(" "));
-            if (arguments.size() == 0) {
-                continue;
-            }
-            switch (arguments.get(0)) {
-                case START:
-                    handleStart(client);
-                    break;
-                case STOP:
-                    handleStop(client);
-                    break;
-                case LIST:
-                    handleList(client);
-                    break;
-                case DOWNLOAD:
-                    handleDownload(client, arguments.subList(1, arguments.size()));
-                    break;
-                case UPLOAD:
-                    handleUpload(client, arguments.subList(1, arguments.size()));
-                    break;
-                case QUIT:
-                    handleQuit(client);
+        byte[] trackerAddress;
+        try {
+            trackerAddress = InetAddress.getByName(args[1]).getAddress();
+        } catch (UnknownHostException e) {
+            LOGGER.error(WRONG_TRACKER_ADDRESS + args[1]);
+            return;
+        }
+        switch (args[0]) {
+            case LIST:
+                if (args.length != LIST_ARGUMENTS_NUMBER) {
+                    LOGGER.error(WRONG_ARGUMENTS_NUMBER + LIST);
                     return;
-                default:
-                    System.out.println(WRONG_FORMAT_ERROR);
-            }
+                }
+                handleList(client, trackerAddress);
+                break;
+            case GET:
+                if (args.length != GET_ARGUMENTS_NUMBER) {
+                    LOGGER.error(WRONG_ARGUMENTS_NUMBER + GET);
+                    return;
+                }
+                try {
+                    handleGet(client, trackerAddress, Integer.parseInt(args[2]));
+                } catch (NumberFormatException e) {
+                    LOGGER.error("Wrong file id format: " + args[2]);
+                }
+                break;
+            case NEW_FILE:
+                if (args.length != NEW_FILE_ARGUMENTS_NUMBER) {
+                    LOGGER.error(WRONG_ARGUMENTS_NUMBER + NEW_FILE);
+                    return;
+                }
+                handleNewFile(client, trackerAddress, args[2]);
+                break;
+            case RUN:
+                if (args.length != RUN_ARGUMENTS_NUMBER) {
+                    LOGGER.error(WRONG_ARGUMENTS_NUMBER + RUN);
+                    return;
+                }
+                handleRun(client, trackerAddress);
+                break;
+            default:
+                LOGGER.error("Not supported operation: " + args[0]);
+                break;
         }
-    }
-
-    private static void handleStart(Client client) {
         try {
-            client.start(LOCALHOST);
-            System.out.println(REQUEST_OK_STATUS + START);
+            client.save();
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            LOGGER.warn("Save request exception: " + e.getMessage());
         }
     }
 
-    private static void handleStop(Client client) {
+    private static void handleList(Client client, byte[] trackerAddress) {
         try {
-            client.stop();
-            System.out.println(REQUEST_OK_STATUS + STOP);
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private static void handleList(Client client) {
-        try {
+            client.start(trackerAddress);
             List<FileInfo> filesList = client.getFilesList();
             for (FileInfo fileInfo : filesList) {
                 System.out.println(NAME + fileInfo.getName() + ", "
                         + SIZE + fileInfo.getSize() + ", " + ID + fileInfo.getId());
             }
-            System.out.println(REQUEST_OK_STATUS + LIST);
+            client.stopClient();
+            client.stopServer();
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            LOGGER.warn("List request exception: " + e.getMessage());
         }
     }
 
-    private static void handleDownload(Client client, List<String> arguments) {
-        if (arguments.size() != 2) {
-            System.out.println(WRONG_FORMAT_ERROR);
-            return;
-        }
+    private static void handleGet(Client client, byte[] trackerAddress, int id) {
         try {
-            client.download(Integer.valueOf(arguments.get(0)), Paths.get(arguments.get(1)));
-            System.out.println(REQUEST_OK_STATUS + DOWNLOAD);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+            client.addFileToDownload(trackerAddress, id);
+        } catch (IOException e) {
+            LOGGER.warn("Get request exception: " + e.getMessage());
         }
     }
 
-    private static void handleUpload(Client client, List<String> arguments) {
-        if (arguments.size() != 1) {
-            System.out.println(WRONG_FORMAT_ERROR);
-            return;
-        }
+    private static void handleNewFile(Client client, byte[] trackerAddress, String path) {
         try {
-            client.upload(arguments.get(0));
-            System.out.println(REQUEST_OK_STATUS + UPLOAD);
+            client.start(trackerAddress);
+            client.upload(path);
+            client.stopClient();
+            client.stopServer();
         } catch (NoSuchFileException e) {
-            System.out.println(WRONG_PATH_ERROR);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+            LOGGER.error("Wrong file path");
+        } catch (IOException e) {
+            LOGGER.warn("NewFile request exception: " + e.getMessage());
         }
     }
 
-    private static void handleQuit(Client client) {
+    private static void handleRun(Client client, byte[] trackerAddress) {
         try {
-            client.save();
-            System.out.println(REQUEST_OK_STATUS + QUIT);
+            client.start(trackerAddress);
+            client.run(trackerAddress);
+            client.stopClient();
+            client.stopServer();
+        } catch (NoSuchFileException e) {
+            LOGGER.error("Wrong file path");
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            LOGGER.warn("NewFile request exception: " + e.getMessage());
         }
     }
 }

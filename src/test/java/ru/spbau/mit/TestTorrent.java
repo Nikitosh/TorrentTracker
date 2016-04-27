@@ -26,8 +26,6 @@ public class TestTorrent {
     private static final Path FILE_PATH2 = DIR_PATH2.resolve(FILE_NAME2);
     private static final long FILE_LENGTH1 = Constants.DATA_BLOCK_SIZE + 2;
     private static final long FILE_LENGTH2 = 50;
-    private static final short PORT1 = 12345;
-    private static final short PORT2 = 12346;
     private static final byte[] LOCALHOST = new byte[] {127, 0, 0, 1};
     private static final long DELAY = 1000;
 
@@ -47,13 +45,13 @@ public class TestTorrent {
         Server server = new TorrentServer();
         server.start();
 
-        Client client1 = new TorrentClient(PORT1);
+        Client client1 = new TorrentClient();
         client1.start(LOCALHOST);
         Files.createDirectory(DIR_PATH1);
         createFile(FILE_PATH1, FILE_LENGTH1);
         client1.upload(FILE_PATH1.toString());
 
-        Client client2 = new TorrentClient(PORT2);
+        Client client2 = new TorrentClient();
         client2.start(LOCALHOST);
         List<FileInfo> filesList = client2.getFilesList();
         assertEquals(Collections.singletonList(new FileInfo(0, FILE_NAME1, FILE_LENGTH1)), filesList);
@@ -67,8 +65,10 @@ public class TestTorrent {
                 new FileInfo(1, FILE_NAME2, FILE_LENGTH2)
         ), filesList2);
 
-        client1.stop();
-        client2.stop();
+        client1.stopClient();
+        client1.stopServer();
+        client2.stopClient();
+        client2.stopServer();
         server.stop();
     }
 
@@ -78,21 +78,23 @@ public class TestTorrent {
         Server server = new TorrentServer();
         server.start();
 
-        Client client1 = new TorrentClient(PORT1);
+        Client client1 = new TorrentClient();
         client1.start(LOCALHOST);
         Files.createDirectory(DIR_PATH1);
         createFile(FILE_PATH1, FILE_LENGTH1);
         client1.upload(FILE_PATH1.toString());
 
-        Client client2 = new TorrentClient(PORT2);
+        Client client2 = new TorrentClient();
         client2.start(LOCALHOST);
         Files.createDirectory(DIR_PATH2);
         Thread.sleep(DELAY);
         client2.download(0, DIR_PATH2);
         assertEquals(FILE_LENGTH1, DIR_PATH1.resolve(FILE_NAME1).toFile().length());
 
-        client1.stop();
-        client2.stop();
+        client1.stopClient();
+        client1.stopServer();
+        client2.stopClient();
+        client2.stopServer();
         server.stop();
     }
 

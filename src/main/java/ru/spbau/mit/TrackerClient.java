@@ -9,5 +9,5 @@ public interface TrackerClient {
     List<FileInfo> executeList() throws IOException;
     int executeUpload(String name, long size) throws IOException;
     List<ClientInfo> executeSources(int id) throws IOException;
-    boolean executeUpdate(short port, List<Integer> seededFiles) throws IOException;
+    boolean executeUpdate(int port, List<Integer> seededFiles) throws IOException;
 }
