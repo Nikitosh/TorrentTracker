@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 import java.io.IOException;
 import java.util.List;

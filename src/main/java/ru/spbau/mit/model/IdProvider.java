@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 public final class IdProvider {
     private static IdProvider instance;

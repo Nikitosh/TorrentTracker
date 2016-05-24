@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 import java.io.*;
 import java.nio.file.Files;

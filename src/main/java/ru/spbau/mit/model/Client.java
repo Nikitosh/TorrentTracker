@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -9,6 +9,7 @@ public interface Client {
     void stop() throws IOException;
     List<FileInfo> getFilesList() throws IOException;
     void addFileToDownload(byte[] ip, int fileId) throws IOException;
+    int getProgress(int id);
     void upload(String path) throws IOException;
     void run(byte[] ip) throws IOException;
     void download(int fileId, Path path) throws IOException;
