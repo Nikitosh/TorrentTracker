@@ -4,6 +4,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import ru.spbau.mit.model.*;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;

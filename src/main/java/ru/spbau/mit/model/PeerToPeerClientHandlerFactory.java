@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 import java.net.Socket;
 import java.util.function.Function;

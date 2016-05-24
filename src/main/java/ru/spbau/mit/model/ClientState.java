@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,14 +13,17 @@ import java.util.*;
 
 public class ClientState {
     private static final Logger LOGGER = LogManager.getLogger(ClientState.class);
+    private static final int TO_PERCENT = 100;
 
     private Map<Integer, BitSet> availableFileParts; //stores numbers of available parts of given id
+    private Map<Integer, Integer> filesSizes; //stores file size for given id
     private Map<Integer, Path> filesPaths; //stores path of file with given id
     //stores list of ids for given ip
     private final Map<InetAddress, List<Integer>> toDownloadFiles = new HashMap<>();
 
     public ClientState() {
         availableFileParts = new HashMap<>();
+        filesSizes = new HashMap<>();
         filesPaths = new HashMap<>();
     }
 
@@ -32,12 +35,15 @@ public class ClientState {
             fileParts.set(i);
         }
         availableFileParts.put(id, fileParts);
+        filesSizes.put(id, (int) ((size + Constants.DATA_BLOCK_SIZE - 1) / Constants.DATA_BLOCK_SIZE));
     }
 
-    public void addFilePart(int id, int part, Path path) {
+    public void addFilePart(int id, int part, long size, Path path) {
         if (!filesPaths.containsKey(id)) {
             filesPaths.put(id, path);
-            availableFileParts.put(id, new BitSet());
+            int bitSetSize = (int) ((size + Constants.DATA_BLOCK_SIZE - 1) / Constants.DATA_BLOCK_SIZE);
+            availableFileParts.put(id, new BitSet(bitSetSize));
+            filesSizes.put(id, bitSetSize);
         }
         availableFileParts.get(id).set(part);
     }
@@ -50,16 +56,24 @@ public class ClientState {
         }
         DataOutputStream outputStream = new DataOutputStream(new FileOutputStream(file));
 
+
         outputStream.writeInt(availableFileParts.size());
         for (Map.Entry<Integer, BitSet> entry : availableFileParts.entrySet()) {
             outputStream.writeInt(entry.getKey());
             BitSet availableParts = entry.getValue();
+            outputStream.writeInt(availableParts.length());
             outputStream.writeInt(availableParts.cardinality());
             for (int i = 0; i < availableParts.size(); i++) {
                 if (availableParts.get(i)) {
                     outputStream.writeInt(i);
                 }
             }
+        }
+
+        outputStream.writeInt(filesSizes.size());
+        for (Map.Entry<Integer, Integer> fileSize : filesSizes.entrySet()) {
+            outputStream.writeInt(fileSize.getKey());
+            outputStream.writeInt(fileSize.getValue());
         }
 
         outputStream.writeInt(filesPaths.size());
@@ -92,11 +106,19 @@ public class ClientState {
         for (int i = 0; i < availableFilePartsSize; i++) {
             int id = inputStream.readInt();
             int setSize = inputStream.readInt();
-            BitSet availableParts = new BitSet();
-            for (int j = 0; j < setSize; j++) {
+            BitSet availableParts = new BitSet(setSize);
+            int setCardinality = inputStream.readInt();
+            for (int j = 0; j < setCardinality; j++) {
                 availableParts.set(inputStream.readInt());
             }
             availableFileParts.put(id, availableParts);
+        }
+
+        int filesSizesSize = inputStream.readInt();
+        for (int i = 0; i < filesSizesSize; i++) {
+            int id = inputStream.readInt();
+            int size = inputStream.readInt();
+            filesSizes.put(id, size);
         }
 
         int filesPathsSize = inputStream.readInt();
@@ -158,5 +180,13 @@ public class ClientState {
             LOGGER.warn(e.getMessage());
             return null;
         }
+    }
+
+    int getProgress(int id) {
+        if (availableFileParts.containsKey(id)) {
+
+            return availableFileParts.get(id).cardinality() * TO_PERCENT / filesSizes.get(id);
+        }
+        return 0;
     }
 }

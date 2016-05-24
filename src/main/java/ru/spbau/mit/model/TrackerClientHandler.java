@@ -1,4 +1,4 @@
-package ru.spbau.mit;
+package ru.spbau.mit.model;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -135,7 +135,7 @@ public class TrackerClientHandler implements Runnable {
             };
             synchronized (toRemoveClientTasks) {
                 toRemoveClientTasks.put(clientInfo, task);
-                toRemoveClientTimer.schedule(task, Constants.UPDATE_REQUEST_DELAY);
+                toRemoveClientTimer.schedule(task, Constants.UPDATE_REQUEST_PERIOD);
             }
         } catch (IOException e) {
             LOGGER.warn("Exception during handling update request: " + e.getMessage());
